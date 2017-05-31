@@ -26,10 +26,20 @@ if(NOT TARGET Beam)
   add_subdirectory(../Beam Beam)
 endif()
 
-file(GLOB LinEl_SRCS *.C)
+file(GLOB LinEl_SRCS RELATIVE ${PROJECT_SOURCE_DIR} *.C)
 
 add_executable(LinEl ${LinEl_SRCS})
 target_link_libraries(LinEl Beam Elasticity ${IFEM_LIBRARIES})
+
+foreach(src ${El_SOURCES})
+  list(APPEND CHECK_SOURCES ../${src})
+endforeach()
+
+foreach(src ${Beam_SOURCES})
+  list(APPEND CHECK_SOURCES ../Beam/${src})
+endforeach()
+
+list(APPEND CHECK_SOURCES ${LinEl_SRCS})
 
 # Installation
 install(TARGETS LinEl DESTINATION bin COMPONENT bin)
@@ -52,9 +62,6 @@ endif(IFEM_INSTALL_DOXY)
 # Regression tests
 enable_testing()
 include(IFEMTesting)
-
-# Generate regtest script with correct paths
-configure_file(${IFEM_REGTEST_SCRIPT} regtest.sh)
 
 if(MPI_FOUND)
   # Add parallel tests here

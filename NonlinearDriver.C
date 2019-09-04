@@ -214,10 +214,6 @@ int NonlinearDriver::solveProblem (DataExporter* writer,
   else if (pit != opt.project.end())
     getMaxVals = true;
 
-  // Initialize the linear solver
-  if (!this->initEqSystem(true,model.getNoFields()))
-    return 3;
-
   int iStep = aStep = 0; // Save initial state to VTF
   if (opt.format >= 0 && params.multiSteps() && params.time.dt > 0.0)
     if (!this->saveStep(-(++iStep),params.time.t))

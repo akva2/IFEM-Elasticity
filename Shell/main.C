@@ -59,8 +59,12 @@ int runSimulator (Simulator& simulator, SIMbase& model, char* infile,
   if (stopTime < 0.0)
     return 0; // Data check only, no simulation
 
-  // Initialize the linear equation solver and solution vectors
+  // Initialize the solution vectors
   simulator.initSol();
+
+  // Initialize the linear equation solver
+  if (!simulator.initEqSystem(true,model.getNoFields()))
+    return 3;
 
   if (!model.opt.restartFile.empty())
   {

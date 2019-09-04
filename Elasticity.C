@@ -965,7 +965,7 @@ void Elasticity::printMaxVals (std::streamsize precision, size_t comp) const
       os.flags(oldF);
       os <<"  X = "<< maxVal[i][p].first;
       if (maxVal[i].size() > 1)
-	os <<"\tPatch "<< p+1;
+        os <<"\tPatch "<< p+1;
       os << std::endl;
     }
   }

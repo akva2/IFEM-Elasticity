@@ -12,9 +12,9 @@
 //==============================================================================
 
 #include "IFEM.h"
-#include "SIMLinEl.h"
 #include "SIMLinElKL.h"
 #include "SIMLinElBeamC1.h"
+#include "SIMLinElModal.h"
 #include "SIMElasticBar.h"
 #include "SIMargsBase.h"
 #include "ImmersedBoundaries.h"
@@ -27,6 +27,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
+
+/*!
+  \brief Driver for modal analysis of linear dynamics problems.
+  \param infile File name used to construct the VTF-file name from
+  \param nM Number of eigenmodes
+  \param model The isogeometric finite element model
+  \param exporter Result export handler
+  \return Exit status
+*/
+
+int modalSim (char* infile, size_t nM,
+              SIMoutput* model, DataExporter* exporter);
 
 
 /*!
@@ -63,6 +76,7 @@
   \arg -ncv \a ncv : Number of Arnoldi vectors to use in the eigenvalue analysis
   \arg -shift \a shf : Shift value to use in the eigenproblem solver
   \arg -free : Ignore all boundary conditions (use in free vibration analysis)
+  \arg -dynamic : Solve the dynamic problem using modal transformation
   \arg -check : Data check only, read model and output to VTF (no solution)
   \arg -checkRHS : Check that the patches are modelled in a right-hand system
   \arg -vizRHS : Save the right-hand-side load vector on the VTF-file
@@ -108,6 +122,7 @@ int main (int argc, char** argv)
   bool noProj = false;
   bool noError = false;
   bool dualSol = false;
+  bool dynamic = false;
   char* infile = nullptr;
   Elasticity::wantPrincipalStress = true;
   SIMargsBase args("elasticity");
@@ -184,6 +199,8 @@ int main (int argc, char** argv)
       args.adap = -2;
     else if (!strncmp(argv[i],"-dual",5))
       dualSol = true;
+    else if (!strncmp(argv[i],"-dyn",4))
+      dynamic = true;
     else if (!infile)
     {
       infile = argv[i];
@@ -206,7 +223,7 @@ int main (int argc, char** argv)
               <<" [-nu <nu>] [-nv <nv>] [-nw <nw>]]\n       [-adap[<i>]|-dual"
               <<"adap] [-DGL2] [-CGL2] [-SCR] [-VDSA] [-LSQ] [-QUASI]\n      "
               <<" [-eig <iop> [-nev <nev>] [-ncv <ncv] [-shift <shf>] [-free]]"
-              <<"\n       [-ignore <p1> <p2> ...] [-fixDup]"
+              <<" [-dynamic]\n       [-ignore <p1> <p2> ...] [-fixDup]"
               <<" [-dual] [-checkRHS] [-check]\n      "
               <<" [-printMax[Patch]] [-dumpASC] [-dumpMatlab [<setnames>]]"
               <<"\n       [-outPrec <nd>] [-ztol <eps>]\n";
@@ -241,6 +258,7 @@ int main (int argc, char** argv)
 
   // Create the simulation model
   SIMoutput* model;
+  std::vector<Mode> modes;
   if (args.dim == 1)
   {
     if (KLp)
@@ -250,6 +268,13 @@ int main (int argc, char** argv)
   }
   else if (KLp)
     model = new SIMLinElKL(shell);
+  else if (dynamic)
+  {
+    if (args.dim == 2)
+      model = new SIMLinElModal<SIM2D>(modes,checkRHS);
+    else
+      model = new SIMLinElModal<SIM3D>(modes,checkRHS);
+  }
   else if (args.dim == 2)
     model = new SIMLinEl2D(checkRHS, dualSol || args.adap < 0);
   else
@@ -277,8 +302,11 @@ int main (int argc, char** argv)
     return terminate(1);
 
   // Boundary conditions can be ignored only in generalized eigenvalue analysis
-  if (model->opt.eig != 4 && model->opt.eig != 6)
-    SIMbase::ignoreDirichlet = false;
+  if (model->opt.eig != 3 && model->opt.eig != 4 && model->opt.eig != 6)
+    // Dynamic analysis requires solving the generalized eigenvalue problem,
+    SIMbase::ignoreDirichlet = dynamic = false;
+  else if (args.adap || KLp || args.dim < 2)
+    dynamic = false; // and not for adaptive grid and/or Kirchhoff-Love
 
   for (i = args.dim; i < 3; i++) model->opt.nViz[i] = 1;
 
@@ -298,9 +326,9 @@ int main (int argc, char** argv)
   SIMoptions::ProjectionMap::const_iterator pit;
 
   // Set default projection method (tensor splines only)
-  bool staticSol = iop + model->opt.eig%5 == 0 || args.adap;
-  if (model->opt.discretization < ASM::Spline || !staticSol || noProj)
-    pOpt.clear(); // No projection if Lagrange/Spectral or no static solution
+  bool response = iop + model->opt.eig%5 == 0 || args.adap || dynamic;
+  if (model->opt.discretization < ASM::Spline || !response || noProj)
+    pOpt.clear(); // No projection if Lagrange/Spectral or no solution response
   else if (model->opt.discretization == ASM::Spline && pOpt.empty())
     if (args.dim > 1) pOpt[SIMoptions::GLOBAL] = "Greville point projection";
 
@@ -322,7 +350,6 @@ int main (int argc, char** argv)
   Vectors projs(pOpt.size()), gNorm;
   Vectors projx(pOpt.size()), xNorm;
   Vectors projd(model->haveDualSol() ? pOpt.size() : 0), dNorm;
-  std::vector<Mode> modes;
 
   if (aSim && !aSim->initAdaptor(abs(args.adap)-1))
     return terminate(3);
@@ -344,7 +371,7 @@ int main (int argc, char** argv)
     exporter = new DataExporter(true);
     exporter->registerWriter(new HDF5Writer(model->opt.hdf5,
                                             model->getProcessAdm()));
-    if (staticSol)
+    if (response)
     {
       exporter->registerField("u", "solution", DataExporter::SIM, results);
       exporter->setFieldValue("u", model,
@@ -633,9 +660,13 @@ int main (int argc, char** argv)
     if (!model->assembleSystem())
       return terminate(8);
 
+    // Solve the generalized eigenvalue problem
     if (!model->systemModes(modes))
       return terminate(9);
   }
+
+  if (dynamic) // Solve the dynamic problem using modal transformation
+    return terminate(modalSim(infile,modes.size(),model,exporter));
 
   utl::profiler->start("Postprocessing");
 

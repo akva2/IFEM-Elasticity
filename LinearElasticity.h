@@ -29,9 +29,11 @@ class LinearElasticity : public Elasticity
 public:
   //! \brief Default constructor.
   //! \param[in] n Number of spatial dimensions
-  //! \param[in] axS \e If \e true, an axisymmetric 3D formulation is assumed
-  //! \param[in] GPout \e If -e true, write Gauss point coordinates to VTF
-  LinearElasticity(unsigned short int n, bool axS = false, bool GPout = false);
+  //! \param[in] axSym If \e true, an axisymmetric 3D formulation is assumed
+  //! \param[in] GPout If \e true, write Gauss point coordinates to VTF
+  //! \param[in] modal If \e true, a modal dynamics simulation is performed
+  LinearElasticity(unsigned short int n, bool axSym = false,
+                   bool GPout = false, bool modal = false);
   //! \brief Empty destructor.
   virtual ~LinearElasticity() {}
 
@@ -111,6 +113,8 @@ protected:
 
 private:
   mutable Vec3Vec* myItgPts; //!< Global Gauss point coordinates
+
+  bool isModal; //!< Flag for modal dynamics simulation
 };
 
 #endif

@@ -24,11 +24,13 @@
 #include "tinyxml.h"
 
 
-LinearElasticity::LinearElasticity (unsigned short int n, bool axS, bool GPout)
-  : Elasticity(n,axS)
+LinearElasticity::LinearElasticity (unsigned short int n, bool axSym,
+                                    bool GPout, bool modal)
+  : Elasticity(n,axSym)
 {
   myTemp0 = myTemp = NULL;
   myItgPts = n == 2 && GPout ? new Vec3Vec() : NULL;
+  isModal = modal;
 }
 
 
@@ -61,6 +63,9 @@ bool LinearElasticity::parse (const TiXmlElement* elem)
 
 void LinearElasticity::setMode (SIM::SolutionMode mode)
 {
+  if (isModal && mode == SIM::DYNAMIC)
+    mode = SIM::RHS_ONLY;
+
   if (mode >= SIM::RECOVERY && m_mode != mode)
     this->initMaxVals();
 

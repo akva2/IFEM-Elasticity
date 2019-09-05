@@ -16,6 +16,11 @@
 
 #include "SIMLinEl.h"
 #include "SIMmodal.h"
+#ifdef HAS_CEREAL
+#include <cereal/cereal.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#endif
 
 
 /*!
@@ -110,6 +115,47 @@ public:
 
   //! \brief Returns the number of expanded dynamic solution vectors.
   virtual size_t numExpSolution() const { return sol.size(); }
+
+  bool serialize(std::map<std::string,std::string>& data) const
+  {
+#ifdef HAS_CEREAL
+    std::ostringstream str;
+    cereal::BinaryOutputArchive archive(str);
+    archive(this->myModes.size());
+    for (const Mode& mode : this->myModes) {
+      archive(mode.eigNo);
+      archive(mode.eigVal);
+      archive(mode.eigVec);
+    }
+    data["ModalSIM"] = str.str();
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  bool deSerialize(const std::map<std::string,std::string>& data)
+  {
+#ifdef HAS_CEREAL
+    auto sit = data.find("ModalSIM");
+    if (sit == data.end())
+      return false;
+
+    std::stringstream str(sit->second);
+    cereal::BinaryInputArchive archive(str);
+    size_t size;
+    archive(size);
+    this->myModes.resize(size);
+    for (Mode& mode : this->myModes) {
+      archive(mode.eigNo);
+      archive(mode.eigVal);
+      archive(mode.eigVec);
+    }
+    return true;
+#else
+    return false;
+#endif
+  }
 
 protected:
   //! \brief Returns the actual integrand.

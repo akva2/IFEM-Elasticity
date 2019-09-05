@@ -49,7 +49,8 @@ public:
 };
 
 
-int modalSim (char* infile, size_t nM, SIMoutput* model, DataExporter* exporter)
+int modalSim (char* infile, size_t nM,
+              SIMoutput* model, DataExporter* exporter)
 {
   ModalDriver simulator(*model);
 
@@ -73,6 +74,18 @@ int modalSim (char* infile, size_t nM, SIMoutput* model, DataExporter* exporter)
   if (!model->initSystem(LinAlg::DENSE,0,1))
     return 3;
 
-  // Run the modal time integration
-  return simulator.solveProblem(exporter,nullptr);
+  simulator.setExtraSerialize(model);
+  std::unique_ptr<HDF5Restart> rst;
+  if (!model->opt.restartFile.empty()) {
+    rst = std::make_unique<HDF5Restart>(model->opt.restartFile,
+                                        model->getProcessAdm(), model->opt.restartInc);
+    if (model->opt.restartStep != -1) {
+      HDF5Restart::SerializeData data;
+      rst->readData(data, model->opt.restartStep);
+      if (!simulator.deSerialize(data))
+        return 3;
+    }
+  }
+
+  return simulator.solveProblem(exporter,rst.get());
 }

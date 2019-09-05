@@ -164,6 +164,9 @@ public:
   //! \param data Container for serialized data
   virtual bool serialize(HDF5Restart::SerializeData& data) const
   {
+    if (extraSerialize)
+      extraSerialize->serialize(data);
+
     return params.serialize(data) && this->Newmark::serialize(data);
   }
 
@@ -171,6 +174,9 @@ public:
   //! \param[in] data Container for serialized data
   virtual bool deSerialize(const HDF5Restart::SerializeData& data)
   {
+    if (extraSerialize)
+      extraSerialize->deSerialize(data);
+
     return params.deSerialize(data) && this->Newmark::deSerialize(data);
   }
 
@@ -206,7 +212,10 @@ protected:
     return 0;
   }
 
+  void setExtraSerialize(SIMoutput* sim) { extraSerialize = sim; }
+
 private:
+  SIMoutput* extraSerialize = nullptr; //!< Extra SIM for serialization
   TimeStep params; //!< Time stepping parameters
   Matrix   proSol; //!< Projected secondary solution
 

@@ -661,8 +661,9 @@ int main (int argc, char** argv)
       return terminate(8);
 
     // Solve the generalized eigenvalue problem
-    if (!model->systemModes(modes))
-      return terminate(9);
+    if (!dynamic || model->opt.restartStep == -1)
+      if (!model->systemModes(modes))
+        return terminate(9);
   }
 
   if (dynamic) // Solve the dynamic problem using modal transformation

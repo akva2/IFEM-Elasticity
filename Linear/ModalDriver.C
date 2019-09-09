@@ -14,6 +14,7 @@
 #include "NewmarkDriver.h"
 #include "NewmarkSIM.h"
 #include "SIMmodal.h"
+#include "Elasticity.h"
 
 
 /*!
@@ -25,7 +26,7 @@ class ModalDriver : public NewmarkDriver<NewmarkSIM>
 public:
   //! \brief The constructor forwards to the parent class constructor.
   //! \param sim Reference to the spline FE model
-  explicit ModalDriver(SIMbase& sim) : NewmarkDriver<NewmarkSIM>(sim) {}
+  explicit ModalDriver(SIMbase& sim) : NewmarkDriver<NewmarkSIM>(sim,true) {}
   //! \brief Empty destructor.
   virtual ~ModalDriver() {}
 
@@ -86,6 +87,8 @@ int modalSim (char* infile, size_t nM,
         return 3;
     }
   }
+
+  Elasticity::wantStrain = true;
 
   return simulator.solveProblem(exporter,rst.get());
 }

@@ -34,7 +34,9 @@ template<class Newmark> class NewmarkDriver : public Newmark
 public:
   //! \brief The constructor forwards to the parent class constructor.
   //! \param sim Reference to the spline FE model
-  explicit NewmarkDriver(SIMbase& sim) : Newmark(sim) { doInitAcc = false; }
+  //! \param preparse If true, underlying model is already parsed
+  explicit NewmarkDriver(SIMbase& sim, bool preparse = false) :
+    Newmark(sim), preparsed(preparse) { doInitAcc = false; }
   //! \brief Empty destructor.
   virtual ~NewmarkDriver() {}
 
@@ -58,7 +60,7 @@ protected:
         utl::getAttribute(respts,"file",pointfile);
     }
 
-    bool ok = this->Newmark::parse(elem);
+    bool ok = preparsed || this->Newmark::parse(elem);
     if (ok && !strcasecmp(elem->Value(),"newmarksolver"))
       IFEM::cout <<"\talpha1 = "<< Newmark::alpha1
                  <<"  alpha2 = "<< Newmark::alpha2
@@ -186,6 +188,8 @@ public:
   //! \brief Overrides the stop time that was read from the input file.
   void setStopTime(double t) { params.stopTime = t; }
 
+  void setExtraSerialize(SIMoutput* sim) { extraSerialize = sim; }
+
 protected:
   using Newmark::saveStep;
   //! \brief Saves the converged solution to VTF file.
@@ -212,8 +216,6 @@ protected:
     return 0;
   }
 
-  void setExtraSerialize(SIMoutput* sim) { extraSerialize = sim; }
-
 private:
   SIMoutput* extraSerialize = nullptr; //!< Extra SIM for serialization
   TimeStep params; //!< Time stepping parameters
@@ -221,6 +223,7 @@ private:
 
   std::string pointfile; //!< Name of output file for point results
   bool        doInitAcc; //!< If \e true, calculate initial accelerations
+  bool        preparsed; //!< If \e true, underlying SIM is already parsed
 };
 
 #endif

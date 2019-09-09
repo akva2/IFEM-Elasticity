@@ -654,16 +654,17 @@ int main (int argc, char** argv)
 
   default:
     // Free vibration: Assemble [Km] and [M]
-    model->setMode(SIM::VIBRATION);
-    model->setQuadratureRule(model->opt.nGauss[0],true,true);
-    model->initSystem(model->opt.solver,2,0);
-    if (!model->assembleSystem())
-      return terminate(8);
+    if (!dynamic || model->opt.restartStep == -1) {
+      model->setMode(SIM::VIBRATION);
+      model->setQuadratureRule(model->opt.nGauss[0],true,true);
+      model->initSystem(model->opt.solver,2,0);
+      if (!model->assembleSystem())
+        return terminate(8);
 
-    // Solve the generalized eigenvalue problem
-    if (!dynamic || model->opt.restartStep == -1)
+      // Solve the generalized eigenvalue problem
       if (!model->systemModes(modes))
         return terminate(9);
+    }
   }
 
   if (dynamic) // Solve the dynamic problem using modal transformation

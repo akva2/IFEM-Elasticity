@@ -46,6 +46,22 @@ public:
   {
     return dynamic_cast<SIMmodal*>(&model)->expandedSolution(i);
   }
+
+  //! \brief Serialize solution state for restarting purposes.
+  //! \param data Container for serialized data
+  virtual bool serialize(HDF5Restart::SerializeData& data) const
+  {
+    return (model.serialize(data) &&
+            this->NewmarkDriver<NewmarkSIM>::serialize(data));
+  }
+
+  //! \brief Set solution from a serialized state.
+  //! \param[in] data Container for serialized data
+  virtual bool deSerialize(const HDF5Restart::SerializeData& data)
+  {
+    return (model.deSerialize(data) &&
+            this->NewmarkDriver<NewmarkSIM>::deSerialize(data));
+  }
 };
 
 
@@ -73,6 +89,23 @@ int modalSim (char* infile, size_t nM, SIMoutput* model, DataExporter* exporter)
   if (!model->initSystem(LinAlg::DENSE,0,1))
     return 3;
 
+  // Load solution state from serialized data in case of restart
+  if (!simulator.checkForRestart())
+    return 4;
+
+  // Check for restart output
+  HDF5Restart* restart = nullptr;
+  if (model->opt.restartInc > 0)
+  {
+    IFEM::cout <<"\nWriting HDF5 file "<< model->opt.hdf5
+               <<"_restart.hdf5"<< std::endl;
+    restart = new HDF5Restart(model->opt.hdf5+"_restart",model->getProcessAdm(),
+                              model->opt.restartInc);
+  }
+
   // Run the modal time integration
-  return simulator.solveProblem(exporter,nullptr);
+  int status = simulator.solveProblem(exporter,restart);
+
+  delete restart;
+  return status;
 }

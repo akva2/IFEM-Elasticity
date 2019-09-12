@@ -206,8 +206,9 @@ protected:
     return 0;
   }
 
-private:
   TimeStep params; //!< Time stepping parameters
+
+private:
   Matrix   proSol; //!< Projected secondary solution
 
   std::string pointfile; //!< Name of output file for point results

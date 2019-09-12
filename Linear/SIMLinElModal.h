@@ -36,6 +36,7 @@ public:
   //! \brief Empty destructor.
   virtual ~SIMLinElModal() {}
 
+  using SIMLinEl<Dim>::assembleSystem;
   //! \brief Administers assembly of the linear equation system.
   //! \param[in] time Parameters for time-dependent simulations
   //! \param[in] mSol Previous modal solution vectors
@@ -122,6 +123,15 @@ public:
   virtual bool deSerialize(const std::map<std::string,std::string>& data)
   {
     return this->restoreModes(data);
+  }
+
+  bool m_solve = false;
+  bool m_advance = false;
+
+  void setLoad(size_t propInd, const char* value)
+  {
+    delete this->myTracs[propInd];
+    this->myTracs[propInd] = utl::parseTracFunc(value, "constant", 1);
   }
 
 protected:

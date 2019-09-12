@@ -33,6 +33,7 @@
 
 bool Elasticity::wantPrincipalStress = false;
 bool Elasticity::asolProject         = false;
+bool Elasticity::wantStrain          = false;
 
 
 Elasticity::Elasticity (unsigned short int n, bool ax) : axiSymmetry(ax)
@@ -53,6 +54,7 @@ Elasticity::Elasticity (unsigned short int n, bool ax) : axiSymmetry(ax)
   dualRHS = nullptr;
 
   gamma = 1.0;
+  wantStrain = false;
 }
 
 
@@ -762,7 +764,10 @@ bool Elasticity::evalSol (Vector& s, const Vectors& eV, const FiniteElement& fe,
     if (locSys) sigma.transform(locSys->getTmat(X));
   }
 
-  s = sigma;
+  if (wantStrain)
+    s = eps;
+  else
+    s = sigma;
 
   if (toLocal)
     s.push_back(sigma.vonMises());
@@ -904,9 +909,14 @@ std::string Elasticity::getField2Name (size_t i, const char* prefix) const
     name += "Axial stress";
   else if (i == 2 && nStress == 3)
     name += s[3]; // No s_zz when plane stress
-  else if (i < nStress)
-    name += axiSymmetry ? r[i] : s[i];
-  else if (i == nStress)
+  else if (i < nStress) {
+    if (wantStrain) {
+      size_t size = name.size();
+      name += axiSymmetry ? r[i] : s[i];
+      name[size-1] = 'e';
+    } else
+      name += axiSymmetry ? r[i] : s[i];
+  } else if (i == nStress)
     name += "von Mises stress";
   else if ((int)(i -= nStress) <= material->getNoIntVariables())
   {

@@ -347,6 +347,7 @@ protected:
 public:
   static bool wantPrincipalStress; //!< Option for principal stress calculation
   static bool asolProject;         //!< Analytical solution projection flag
+  static bool wantStrain;          //!< Output strain instead of stress
 };
 
 
